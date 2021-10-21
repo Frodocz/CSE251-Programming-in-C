@@ -65,16 +65,16 @@ char InputChar(char *prompt) {
     char choice = 'a';
 
     do {
-    	printf("%s", prompt);
+        printf("%s", prompt);
 
-    	/* Get a line of up to 100 characters */
-    	fgets(buffer, sizeof(buffer), stdin);
+        /* Get a line of up to 100 characters */
+        fgets(buffer, sizeof(buffer), stdin);
 
-    	/* Remove any \n we may have input */
-    	if (strlen(buffer) > 0)
-    		buffer[strlen(buffer) - 1] = '\0';
+        /* Remove any \n we may have input */
+        if (strlen(buffer) > 0)
+            buffer[strlen(buffer) - 1] = '\0';
 
-    	sscanf(buffer, "%c", &choice);
+        sscanf(buffer, "%c", &choice);
     } while (toupper(choice) != 'Y' && toupper(choice) != 'N');
 
     return toupper(choice);
@@ -82,22 +82,24 @@ char InputChar(char *prompt) {
 
 int InputTransistorType(char *prompt) {
     char buffer[100];
-    int type = 0;
 
     do {
-    	printf("%s", prompt);
+        printf("%s", prompt);
 
-    	/* Get a line of up to 100 characters */
-    	fgets(buffer, sizeof(buffer), stdin);
+        /* Get a line of up to 100 characters */
+        fgets(buffer, sizeof(buffer), stdin);
 
-    	/* Remove any \n we may have input */
-    	if (strlen(buffer) > 0)
-    		buffer[strlen(buffer) - 1] = '\0';
+        /* Remove any stray newlines from the buffer */
+        while (buffer[0] == '\n')
+            fgets(buffer, sizeof(buffer), stdin);
 
-    	sscanf(buffer, "%d", &type);
-    } while (type != 1 && type != 2);
+        /* Remove any \n we may have input */
+        if (strlen(buffer) > 0)
+            buffer[strlen(buffer) - 1] = '\0';
 
-    return type;
+    } while (strcmp(buffer, "PNP") != 0 && strcmp(buffer, "NPN") != 0);
+
+    return (strcmp(buffer, "PNP") == 0) ? PNP : NPN;
 }
 
 int InputTransistorCaseStyle(char *prompt) {
@@ -105,18 +107,32 @@ int InputTransistorCaseStyle(char *prompt) {
     int caseStyle = 0;
 
     do {
-    	printf("%s", prompt);
+        printf("%s", prompt);
 
-    	/* Get a line of up to 100 characters */
-    	fgets(buffer, sizeof(buffer), stdin);
+        /* Get a line of up to 100 characters */
+        fgets(buffer, sizeof(buffer), stdin);
 
-    	/* Remove any \n we may have input */
-    	if (strlen(buffer) > 0)
-    		buffer[strlen(buffer) - 1] = '\0';
+        /* Remove any stray newlines from the buffer */
+        while (buffer[0] == '\n')
+            fgets(buffer, sizeof(buffer), stdin);
 
-    	sscanf(buffer, "%d", &caseStyle);
-    } while (caseStyle < 1 || caseStyle > 5);
+        /* Remove any \n we may have input */
+        if (strlen(buffer) > 0)
+            buffer[strlen(buffer) - 1] = '\0';
 
+    } while (strcmp(buffer, "TO18") != 0 && strcmp(buffer, "TO92A") != 0 && strcmp(buffer, "TO92C") != 0 && strcmp(buffer, "TO220") != 0 && strcmp(buffer, "TO39") != 0);
+
+    if (strcmp(buffer, "TO18") == 0) {
+        caseStyle = TO18;
+    } else if (strcmp(buffer, "TO92A") == 0) {
+        caseStyle = TO92A;
+    } else if (strcmp(buffer, "TO92C") == 0) {
+        caseStyle = TO92C;
+    } else if (strcmp(buffer, "TO220") == 0) {
+        caseStyle = TO220;
+    } else {
+        caseStyle = TO39;
+    }
     return caseStyle;
 }
 
@@ -125,16 +141,16 @@ double InputPositiveValue(char *prompt) {
     double value = 0;
 
     do {
-    	printf("%s", prompt);
+        printf("%s", prompt);
 
-    	/* Get a line of up to 100 characters */
-	    fgets(buffer, sizeof(buffer), stdin);
-	    
-	    /* Remove any \n we may have input */
-	    if (strlen(buffer) > 0)
-	        buffer[strlen(buffer) - 1] = '\0';
-	        
-	    sscanf(buffer, "%lf", &value);
+        /* Get a line of up to 100 characters */
+        fgets(buffer, sizeof(buffer), stdin);
+        
+        /* Remove any \n we may have input */
+        if (strlen(buffer) > 0)
+            buffer[strlen(buffer) - 1] = '\0';
+            
+        sscanf(buffer, "%lf", &value);
     } while (value <= 0);
     
     return value;
