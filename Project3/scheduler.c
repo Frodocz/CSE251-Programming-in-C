@@ -13,8 +13,6 @@ int main() {
 
     while (true) {
         option = inputMenuOption();
-        if(feof(stdin))
-            return 0;
 
         if (option == INSERT) {
             insertNewEvent(schedule, NULL);
