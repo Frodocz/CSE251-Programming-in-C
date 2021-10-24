@@ -4,29 +4,35 @@
 #include "schedule.h"
 
 int main() {
-	int option;
-	Schedule *schedule = (Schedule *)malloc(sizeof(Schedule));
-	schedule->head = NULL;
-	schedule->numEvents = 0;
+    int option;
+    Schedule *schedule = (Schedule *)malloc(sizeof(Schedule));
+    schedule->head = NULL;
+    schedule->numEvents = 0;
 
-	while (true) {
-		option = inputMenuOption();
+    loadFile(FILE_NAME, schedule);
 
-		if (option == INSERT) {
-            insertNewEvent(schedule);
-		} else if (option == DISPLAY) {
-			displayAllEvents(schedule);
-		} else if (option == NOW) {
-			displayActiveEvents(schedule);
-		} else if (option == DELETE) {
-			deleteExpiredEvents(schedule);
-		} else {
-			printf("Thank you for using the scheduler\n");
-			break;
-		}
-	}
+    while (true) {
+        option = inputMenuOption();
+        if(feof(stdin))
+            return 0;
 
-	/* Free the memory */
-	freeSchedule(schedule);
-	return 0;
+        if (option == INSERT) {
+            insertNewEvent(schedule, NULL);
+            saveFile(FILE_NAME, schedule);
+        } else if (option == DISPLAY) {
+            displayAllEvents(schedule);
+        } else if (option == NOW) {
+            displayActiveEvents(schedule);
+        } else if (option == DELETE) {
+            deleteExpiredEvents(schedule);
+            saveFile(FILE_NAME, schedule);
+        } else {
+            printf("Thank you for using the scheduler\n");
+            break;
+        }
+    }
+
+    /* Free the memory */
+    freeSchedule(schedule);
+    return 0;
 }

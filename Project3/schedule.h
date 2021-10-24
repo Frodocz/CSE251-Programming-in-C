@@ -6,16 +6,18 @@
 
 
 /* Define the menu options */
-#define EXIT		0
-#define INSERT 		1
-#define DISPLAY 	2
-#define NOW 		3
-#define DELETE		4
+#define EXIT        0
+#define INSERT      1
+#define DISPLAY     2
+#define NOW         3
+#define DELETE      4
+
+#define FILE_NAME    "schedule.dat"
 
 /* Due to a lot of insert and delete operation, use a linked list to store the events, doublely linked list should be better */
 typedef struct Schedule {
-	Event *head;
-	int numEvents;
+    Event *head;
+    int numEvents;
 } Schedule;
 
 int inputMenuOption();
@@ -23,7 +25,7 @@ int inputMenuOption();
 /* No global variable allowed, so pass in a pointer to the current active schedule */
 bool isScheduleEmpty(Schedule *schedule);
 
-void insertNewEvent(Schedule *schedule);
+void insertNewEvent(Schedule *schedule, Event *event);
 
 void displayAllEvents(Schedule *schedule);
 
@@ -32,5 +34,9 @@ void displayActiveEvents(Schedule *schedule);
 void deleteExpiredEvents(Schedule *schedule);
 
 void freeSchedule(Schedule *schedule);
+
+void loadFile(const char *filename, Schedule *schedule);
+
+void saveFile(const char *filename, Schedule *schedule);
 
 #endif /* SCHEDULE_H */

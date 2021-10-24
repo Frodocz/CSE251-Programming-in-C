@@ -5,12 +5,12 @@
 #define __USE_XOPEN
 #include <time.h>
 
-#define MAX_DESCRIPTION_LEN		51
+#define MAX_DESCRIPTION_LEN        51
 
 typedef struct Event {
     char description[MAX_DESCRIPTION_LEN];
-    time_t date;	/* eg: 4/14/2011 */
-    time_t start;	/* eg: 3:00pm */
+    time_t date;    /* eg: 4/14/2011 */
+    time_t start;   /* eg: 3:00pm */
     time_t end;;    /* eg: 4:30pm */
     struct Event *next;
 } Event;
