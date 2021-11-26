@@ -5,20 +5,6 @@
 
 #include "ElevatorLib.h"
 
-#define N 200
-
-/* Our possible elevator states */
-#define Idle        0
-#define Moving      1
-#define OpenDoor    2
-#define ClosingDoor 3
-
-// double calculateIntegralTerm(double errors[]);
-void StateIdle();
-void StateMoving();
-void StateOpenDoor();
-void StateClosingDoor(); 
-
 /*
  * Name :        Zhang Chao
  * Description : Project 2 - The elevator controller
@@ -29,54 +15,54 @@ void StateClosingDoor();
  * Description : Program entry point.
  */
 
+#define N 200
+
+/* Our possible elevator states */
+#define Idle        0
+#define Moving      1
+#define OpenDoor    2
+#define ClosingDoor 3
+
+void StateIdle();
+void StateMoving();
+void StateOpenDoor();
+void StateClosingDoor();
+
 int state = Idle;     /* state is global since it is before main */
 bool goingUp = true;  /* going up or going down */
+bool isTimerSet = false; /* record whether the timer is set or not */
+double desiredSpeed = 1; /* record the desired speed of the elevator car */
+
+// PID Controller
+const double Kp = 0.45;
+const double Ki = 0.55;
+const double Dt = 0.001;
+double errors[N] = {0};
+double errorTotal = 0;
+int errorLoc = 0;
+double err = 0; // the error terms at time t
 
 int main() {
-    
-    double desiredSpeed = 1;
-    double errors[N] = {0};
-    double errorTotal = 0;
-    int errorLoc = 0;
-    int t = 0;
-    double err = 0; // the error terms at t
-
-    double Sup=0, Sdown=0, Smax=0;
-    double numSup=0, numSdown=0;
-
     /*
      * This call starts the elevator system running
      */
     printf("Elevator Startup\n");
     ElevatorStartup();
 
+    double Sup=0, Sdown=0, Smax=0;
+    double numSup=0, numSdown=0;
+
     /*
      * This loop runs until we shut the elevator system down
      * by closing the window it runs in.
      */
-    SetBrake(false);
-    ChangeLoading();
-    SetMotorPower(1);
-
-    // PID Controller: Propotional, integral and differentrial (3 terms) --> P(t): Power power applied to motor, SetMotorPower(P(t)).
     while (IsElevatorRunning()) { // main loop runs 1000 times per second
-        switch (state) {
+        switch(state) {
             case Idle:
                 StateIdle();
                 break;
             case Moving:
                 StateMoving();
-                /* Compute new motor power here */
-                // 1st section, propotional term = Kp * et;
-                // 2nd section, integral term = Ki * Sum[for (i = 0 to N(200 which is(1/5 second))) e(t - i) * deltaT(0.001s)]
-                double err = desiredSpeed - GetVelocity();
-                errorLoc = (errorLoc + 1) % N;
-                errorTotal = errorTotal - errors[errorLoc] + err;
-                errors[errorLoc] = err;
-
-                power = 0.45 * err + 0.54 * 0.001 * errorTotal;
-                SetMotorPower(power);
-
                 /* Averaging - get the average speed before the elevator starts slowing down */
                 if (goingUp && GetPosition() < 1.5*FloorSpacing && GetPosition() > .5*FloorSpacing) {
                     Sup += GetVelocity();
@@ -121,130 +107,162 @@ void StateIdle() {
     int gotoFloor; // target floor
     int currentFloor = GetNearestFloor();  // which floor we're at now
 
-    gotoFloor = WhatFloorToGoTo(goingUp); // Event
+    gotoFloor = WhatFloorToGoTo(goingUp); // Event, get the target floor
     if (gotoFloor > 0) {
         // We need to go to the requesting floor
         printf("Request for floor %d\n", gotoFloor);
+        if ((gotoFloor < currentFloor && goingUp) || (gotoFloor > currentFloor && !goingUp)) {
+            goingUp = !goingUp; // change the moving direction
+        }
+    }
+
+    // Idle --> OpenDoor (Check the Call Buttons outside the elevator)
+    if (goingUp && GetCallLight(currentFloor, true)) { // moving up
+        SetCallLight(currentFloor, true, false); // turn off the up call light
+        SetDoor(currentFloor, true); // open the door
+        state = OpenDoor;
+        printf("Transition: from Idle to OpenDoor.\n");
+        return;
+    }
+    if (!goingUp && GetCallLight(currentFloor, false)) { // moving down
+        SetCallLight(currentFloor, false, false); // turn off the Down Call light
+        SetDoor(currentFloor, true); // open the door
+        state = OpenDoor;
+        printf("Transition: from Idle to OpenDoor.\n");
+        return;
+    }
+
+    // Idle --> OpenDoor (Check the Panel buttons inside the elevator)
+    if (GetOpenDoorLight()) { // open the door event triggered
+        SetOpenDoorLight(false); // turn off light
+        SetDoor(currentFloor, true); // open the door
+        state = OpenDoor;
+        printf("Transition: from Idle to OpenDoor.\n");
+        return;
+    } else if (GetCloseDoorLight()) {  // close door
+        SetCloseDoorLight(false); // turn off the close door light, in Idle state door must be closed
+        return;
+    }
+
+    // Idle --> Moving
+    if (gotoFloor > 0) {
+        if (goingUp) {
+            SetCallLight(currentFloor, true, false); // turn off the Up Call light
+            desiredSpeed = 1; // set the desired moving up speed
+        } else {
+            SetCallLight(currentFloor, false, false); // turn off the Down Call light
+            desiredSpeed = -1; // set the desired moving down speed
+        }
+        ChangeLoading();
+        SetBrake(false);
         state = Moving;
-        printf("Transition:  from Idle to Moving.\n");
-    }
-
-    // Idle --> DoorOpen
-    if (GetCallLight(currentFloor, true) || GetCallLight(currentFloor, false) ) {  // Event
-        SetCallLight(currentFloor, true, false);
-        SetCallLight(currentFloor, false, false);
-        // Open door
-        SetDoor(currentFloor, true);  // Transition
-        state = OpenDoor;
-        printf("Transition:  from Idle to OpenDoor.\n");
-        return;
-    }
-
-    if (GetOpenDoorLight()) { // Event
-        SetOpenDoorLight(false); // turn off
-        SetDoor(currentFloor, true);  // Transition
-        state = OpenDoor;
-        printf("Transition:  from Idle to OpenDoor.\n");
-        return;
-    } 
-    // Idle --> Idle
-    else if (GetCloseDoorLight()) {  // close door
-        SetCloseDoorLight(false); // turn off
-        return;
+        printf("Transition: from Idle to MovingUp.\n");
     }
 }
 
+// State moving
 void StateMoving() {
+    // Cannot open/close the door when elevator is moving
+    if (GetOpenDoorLight()) {
+        SetOpenDoorLight(false);
+    }
+    if (GetCloseDoorLight()) {
+        SetCloseDoorLight(false);
+    }
+
     // Where are we going?
     int gotoFloor = WhatFloorToGoToInThisDirection(goingUp);
 
     // How far are we away from the floor we are going to?
     double distance = fabs(GetFloor() - gotoFloor);
 
-
-    if (goingUp && GetPosition() > 2 * FloorSpacing + FloorTolerance) {
-        /* We are above the third floor. Reverse direction */
-        goingUp = false;
-        /* SetMotorPower(-1); this should be removed */
-        ChangeLoading();
-        desiredSpeed = -1;
-        SetBrake(true);
-        if (GetCallLight(3, true)) {
-            /* Button has been pressed */
-            SetCallLight(3, false, true);   
+    // The elevator car gets to the end of its travel
+    if (distance < FloorTolerance) {
+        if (goingUp) {
+            SetCallLight(gotoFloor, true, false);
+        } else {
+            SetCallLight(gotoFloor, false, false);
         }
+        SetMotorPower(0);
+        SetBrake(true);
+        SetDoor(gotoFloor, true);
+        state = Idle;
+        return; // Optimization without calculate the power when elevator stops
     }
 
-    if (GetPosition() < 0.5 * FloorSpacing && !goingUp) {
-        /* We are below the first floor. Reverse direction */
-        goingUp = true;
-        /* SetMotorPower(1); this should be removed */
-        ChangeLoading();
-        desiredSpeed = 1;
-        SetBrake(true);
-        /* Turn off the fisrt floor up call light */
-        if (GetCallLight(1, true)) {
-            /* Button has been pressed */
-            SetCallLight(1, true, false);   
-        }
+    if (distance < 0.5 * FloorSpacing) { // Start to decelerate, continuously update the desired speed
+        desiredSpeed = goingUp ? (distance / 1.64) : (-distance / 1.64);
     }
+        
+    /* Compute new motor power here */
+    // 1st section, propotional term = Kp * et;
+    // 2nd section, integral term = Ki * Sum[for (i = 0 to N(200 which is(1/5 second))) e(t - i) * deltaT(0.001s)]
+    err = desiredSpeed - GetVelocity();
+    errorLoc = (errorLoc + 1) % N;
+    errorTotal = errorTotal - errors[errorLoc] + err;
+    errors[errorLoc] = err;
+    double power = Kp * err + Ki * Dt * errorTotal; // TODO: consider if condition here for check the break status 
+    SetMotorPower(power);
 }
 
-// when door is open
+// State OpenDoor, will automatically switch to ClosingDoor state
 void StateOpenDoor() {
-    int floor = GetNearestFloor();  // get current floor
+    int currentFloor = GetNearestFloor();  // which floor we're at now
 
-    // When opening door, press the open door light, close door when close door button is pressed
-    if (GetCloseDoorLight()) {  // event triggered
-        SetCloseDoorLight(false); // turn off close door light
-        SetDoor(floor, false);  // Trasition
+    // Close the door if the Panel Close Door Button is pressed
+    if (GetCloseDoorLight()) {
+        SetCloseDoorLight(false); // turn off the light
+        SetDoor(currentFloor, false); // close the door
         state = ClosingDoor;
-        printf("Transition:  from OpenDoor to ClosingDoor.\n");
+        printf("Transition: from OpenDoor to ClosingDoor.\n");
         return;
     }
 
-    // When opening door, press the open door light, turn off the open door light
+    // Do nothing but turn off the Panel Open Door Button if Door is Open(ing)
     if (GetOpenDoorLight()) {
-        SetOpenDoorLight(false); // turn off open door light
-        printf("Door is already open.\n");
+        SetOpenDoorLight(false); // turn off the light
         return;
     }
 
-    // When door open successfully, close the door and switch the state to ClosingDoor
-    if (IsDoorOpen(floor))  // Event, after 3s, close door
-    {
-        // close door
-        SetDoor(floor, false); // Transition
-        state = ClosingDoor;
-        printf("Transition:  from OpenDoor to ClosingDoor.\n");
-    } 
+    // After door opened for 3 seconds, close the door
+    if (isDoorOpen(currentFloor)) {
+        if (!isTimerSet) {
+            ResetTimer();
+            isTimerSet = true;
+            return;
+        } else if (GetTimer() > 3) {
+            isTimerSet = false;
+            SetDoor(currentFloor, false);
+            state = ClosingDoor;
+            printf("Transition: from OpenDoor to ClosingDoor.\n");
+            return;
+        }
+    }
 }
 
-// when door is closing
+// State Closing Door
 void StateClosingDoor() {
-    int floor = GetNearestFloor();  // current floor
+    int currentFloor = GetNearestFloor();  // which floor we're at now
 
-    // Open the door suppose some item detected, currently not available in the library
-
-    // When door is closing, press the open door light, open door
-    if (GetOpenDoorLight()) {   // Event
-        SetOpenDoorLight(false); // turn off open door light
-        SetDoor(floor, true);  // Trasition
+    // Open the door if the Panel Open Door Button is pressed
+    if (GetOpenDoorLight()) {
+        SetOpenDoorLight(false); // turn off the light
+        SetDoor(currentFloor, true); // open the door
         state = OpenDoor;
-        printf("Transition:  from ClosingDoor to OpenDoor.\n");
+        printf("Transition: from ClosingDoor to OpenDoor.\n");
         return;
     }
 
-    // When door is closing, press the close door light, turn off the close door light and return
-    if (GetCloseDoorLight()) {  
-        SetCloseDoorLight(false); // turn off close door light
-        printf("Door is closing.\n");
+    // Do nothing but turn off the Panel Close Door Button if Door is Clos(ed/ing)
+    if (GetCloseDoorLight()) {
+        SetCloseDoorLight(false); // turn off the light
         return;
     }
 
-    // Door closed, set state to Idle and wait for next command
-    if (IsDoorClosed(floor)) { // Event
-        state = Idle;  // Transition
-        printf("Transition:  from ClosingDoor to Idle.\n");
-    } 
+    // After door closed, set state to Idle and wait for next command
+    if (IsDoorClosed(currentFloor)) {
+        state = Idle;
+        printf("Transition: from ClosingDoor to Idle.\n");
+        return;
+    }
 }
